@@ -1,7 +1,143 @@
-/**
- * Implement Gatsby's Node APIs in this file.
- *
- * See: https://www.gatsbyjs.org/docs/node-apis/
- */
+const path = require("path");
+const { createFilePath } = require("gatsby-source-filesystem");
+const _ = require("lodash");
 
-// You can delete this file if you're not using it
+exports.createPages = ({ graphql, actions }) => {
+  const { createPage } = actions
+
+  return new Promise((resolve, reject) => {
+    const postTemplate = path.resolve("./src/templates/PostTemplate.js");
+    const pageTemplate = path.resolve("./src/templates/PageTemplate.js");
+    const categoryTemplate = path.resolve("./src/templates/CategoryTemplate.js");
+    resolve(
+      graphql(
+        `
+          {
+            allMarkdownRemark(sort: {fields: frontmatter___date, order: DESC}, limit: 1000) {
+              edges {
+                node {
+                  id
+                  frontmatter {
+                    title
+                    categories
+ 
+                  }
+                  fields {
+                    slug
+                    source
+                  }
+                }
+              }
+            }
+          }
+        `
+      ).then(result => {
+        if (result.errors) {
+          console.log(result.errors)
+          reject(result.errors)
+        }
+
+        const items = result.data.allMarkdownRemark.edges;
+
+        // Create category list
+        const categorySet = new Set();
+        items.forEach(edge => {
+          const {
+            node: {
+              frontmatter: { category }
+            }
+          } = edge;
+
+          if (category && category !== null) {
+            categorySet.add(category);
+          }
+        });
+
+        // Create category pages
+        const categoryList = Array.from(categorySet);
+        categoryList.forEach(category => {
+          createPage({
+            path: `/category/${_.kebabCase(category)}/`,
+            component: categoryTemplate,
+            context: {
+              category
+            }
+          });
+        });
+
+        // Create posts
+        const posts = items.filter(item => item.node.fields.source === "posts");
+        posts.forEach(({ node }, index) => {
+          const slug = node.fields.slug;
+          const next = index === 0 ? undefined : posts[index - 1].node;
+          const prev = index === posts.length - 1 ? undefined : posts[index + 1].node;
+          const source = node.fields.source;
+
+          createPage({
+            path: slug,
+            component: postTemplate,
+            context: {
+              slug,
+              prev,
+              next,
+              source
+            }
+          });
+        });
+
+        // and pages.
+        const pages = items.filter(item => item.node.fields.source === "pages");
+        pages.forEach(({ node }) => {
+          const slug = node.fields.slug;
+          const source = node.fields.source;
+
+          createPage({
+            path: slug,
+            component: pageTemplate,
+            context: {
+              slug,
+              source
+            }
+          });
+        });
+
+      })
+    )
+  })
+}
+
+exports.onCreateNode = ({ node, getNode, actions }) => {
+  const { createNodeField } = actions
+  if (node.internal.type === `MarkdownRemark`) {
+    const slug = createFilePath({ node, getNode });
+    const fileNode = getNode(node.parent)
+    const source = fileNode.sourceInstanceName;
+    const dashChar =
+
+    createNodeField({
+      node,
+      name: `slug`,
+      value: (source !== "pages") ? `${source}${slug}` : slug
+    })
+
+    createNodeField({
+      node,
+      name: `source`,
+      value: source
+    })
+  }
+}
+
+/*exports.onCreateNode = ({ node, getNode, actions }) => {
+  const { createNodeField } = actions;
+  if (node.internal.type === `MarkdownRemark`) {
+    const slug = createFilePath({ node, getNode, basePath: `articles` });
+
+    createNodeField({
+      node,
+      name: `slug`,
+      value: `articles${slug}`,
+    })
+  }
+}*/
+

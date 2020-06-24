@@ -1,0 +1,12 @@
+{
+  "buttons": [
+    {
+      "label": "אודות",
+      "to": "/about/"
+    },
+    {
+      "label": "מאמרים",
+      "to": "/articles/"
+    }
+  ]
+}

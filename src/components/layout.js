@@ -6,46 +6,70 @@
  */
 
 import React from "react"
-import PropTypes from "prop-types"
-import { useStaticQuery, graphql } from "gatsby"
+import { graphql, StaticQuery } from "gatsby"
 
 import Header from "./header"
 import "./layout.css"
 
-const Layout = ({ children }) => {
-  const data = useStaticQuery(graphql`
-    query SiteTitleQuery {
-      site {
-        siteMetadata {
-          title
+
+class Layout extends React.Component {
+
+  render() {
+    return (
+      <StaticQuery
+        query={graphql`
+          query LayoutQuery {
+            pages: allMarkdownRemark(
+              filter: { fileAbsolutePath: { regex: "//pages//" } }
+              sort: { fields: [fields___slug], order: ASC }
+            ) {
+              edges {
+                node {
+                  fields {
+                    slug
+                  }
+                  frontmatter {
+                    title
+                    menuTitle
+                  }
+                }
+              }
+            }
+            footnote: markdownRemark(fileAbsolutePath: { regex: "/footnote/" }) {
+              id
+              html
+            }
+          }
+        `}
+        render={data => {
+          const { children } = this.props;
+          const {
+            pages: { edges: pages }
+          } = data;
+
+          return (
+            <React.Fragment>
+              <Header pages={pages}
+              />
+              <div className={"content"}
+                style={{
+                  margin: `0 auto`,
+                  maxWidth: 960,
+                  padding: `0 1.0875rem 1.45rem`
+                }}
+              >
+                <main>{children}</main>
+                <footer>
+                 
+                </footer>
+              </div>
+            </React.Fragment>
+          );
         }
-      }
-    }
-  `)
-
-  return (
-    <>
-      <Header siteTitle={data.site.siteMetadata.title} />
-      <div
-        style={{
-          margin: `0 auto`,
-          maxWidth: 960,
-          padding: `0 1.0875rem 1.45rem`,
-        }}
-      >
-        <main>{children}</main>
-        <footer>
-          © {new Date().getFullYear()}, Built with
-          {` `}
-          <a href="https://www.gatsbyjs.org">Gatsby</a>
-        </footer>
-      </div>
-    </>
-  )
+        }
+      />
+    );
+  }
 }
 
-Layout.propTypes = {
-  children: PropTypes.node.isRequired,
-}
-
-export default Layout
+export default Layout;
